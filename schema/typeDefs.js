@@ -4,6 +4,7 @@ export const typeDefs = `
     name: String!
     age: Int!
     email: String!
+    courses: [Course]
   }
 type Course {
     id: ID!

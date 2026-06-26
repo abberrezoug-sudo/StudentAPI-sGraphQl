@@ -54,15 +54,15 @@ export const resolvers = {
     },
     course: async (_,{id})=>{
       try{
-        const coursses = await Course.findById(id)
-        if(!coursses){
+        const course = await Course.findById(id)
+        if(!course){
           throw new Error("Course not found")
         }
         return {
-          id : coursses._id.toString(),
-          title : coursses.title,
-          description : coursses.description,
-          studentId : coursses.studentId.toString()
+          id : course._id.toString(),
+          title : course.title,
+          description : course.description,
+          studentId : course.studentId.toString()
         }
       } catch (error) {
         throw new Error(error.message);
@@ -187,6 +187,11 @@ export const resolvers = {
       } catch (error) {
         throw new Error(error.message);
       }
+    },
+  },
+   Student: {
+    courses: async (parent) => {
+      return await Course.find({ studentId: parent.id });
     },
   },
 };
