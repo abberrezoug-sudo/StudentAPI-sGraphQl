@@ -1,18 +1,23 @@
-import Student from "../models/Student.js";
+import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
+
 import Course from "../models/Course.js";
+import Student from "../models/Student.js";
+import User from "../models/User.js";
+
 export const resolvers = {
   Query: {
-    hello: () => "Hello GraphQL 🚀",
+    hello: () => "Hello GraphQL",
 
     students: async () => {
       try {
         const students = await Student.find();
 
-        return students.map((s) => ({
-          id: s._id.toString(),
-          name: s.name,
-          age: s.age,
-          email: s.email,
+        return students.map((student) => ({
+          id: student._id.toString(),
+          name: student.name,
+          age: student.age,
+          email: student.email,
         }));
       } catch (error) {
         throw new Error(error.message);
@@ -37,44 +42,60 @@ export const resolvers = {
         throw new Error(error.message);
       }
     },
-    courses : async ()=>{
-      try{
+
+    courses: async () => {
+      try {
         const courses = await Course.find();
-        return courses.map((c)=>{
-          return {
-            id : c._id.toString(),
-            title : c.title,
-            description : c.description,
-            studentId : c.studentId.toString()
-          }
-        })
+
+        return courses.map((course) => ({
+          id: course._id.toString(),
+          title: course.title,
+          description: course.description,
+          studentId: course.studentId.toString(),
+        }));
       } catch (error) {
         throw new Error(error.message);
       }
     },
-    course: async (_,{id})=>{
-      try{
-        const course = await Course.findById(id)
-        if(!course){
-          throw new Error("Course not found")
+
+    course: async (_, { id }) => {
+      try {
+        const course = await Course.findById(id);
+
+        if (!course) {
+          throw new Error("Course not found");
         }
+
         return {
-          id : course._id.toString(),
-          title : course.title,
-          description : course.description,
-          studentId : course.studentId.toString()
-        }
+          id: course._id.toString(),
+          title: course.title,
+          description: course.description,
+          studentId: course.studentId.toString(),
+        };
       } catch (error) {
         throw new Error(error.message);
       }
-    }
+    },
+
+    users: async () => {
+      try {
+        const users = await User.find();
+
+        return users.map((user) => ({
+          id: user._id.toString(),
+          name: user.name,
+          email: user.email,
+        }));
+      } catch (error) {
+        throw new Error(error.message);
+      }
+    },
   },
 
   Mutation: {
     createStudent: async (_, args) => {
       try {
         const student = new Student(args);
-
         await student.save();
 
         return {
@@ -92,14 +113,8 @@ export const resolvers = {
       try {
         const student = await Student.findByIdAndUpdate(
           id,
-          {
-            name,
-            age,
-            email,
-          },
-          {
-            new: true,
-          }
+          { name, age, email },
+          { new: true }
         );
 
         if (!student) {
@@ -140,6 +155,7 @@ export const resolvers = {
       try {
         const course = new Course(args);
         await course.save();
+
         return {
           id: course._id.toString(),
           title: course.title,
@@ -158,9 +174,11 @@ export const resolvers = {
           { title, description, studentId },
           { new: true }
         );
+
         if (!course) {
           throw new Error("Course not found");
         }
+
         return {
           id: course._id.toString(),
           title: course.title,
@@ -175,9 +193,11 @@ export const resolvers = {
     deleteCourse: async (_, { id }) => {
       try {
         const course = await Course.findByIdAndDelete(id);
+
         if (!course) {
           throw new Error("Course not found");
         }
+
         return {
           id: course._id.toString(),
           title: course.title,
@@ -188,10 +208,63 @@ export const resolvers = {
         throw new Error(error.message);
       }
     },
+
+    register: async (_, { name, email, password }) => {
+      try {
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const user = new User({
+          name,
+          email,
+          password: hashedPassword,
+        });
+
+        await user.save();
+
+        return {
+          id: user._id.toString(),
+          name: user.name,
+          email: user.email,
+        };
+      } catch (error) {
+        throw new Error(error.message);
+      }
+    },
+
+    login: async (_, { email, password }) => {
+      try {
+        const user = await User.findOne({ email }).select("+password");
+
+        if (!user) {
+          throw new Error("Invalid email or password");
+        }
+
+        const isMatch = await bcrypt.compare(password, user.password);
+
+        if (!isMatch) {
+          throw new Error("Invalid email or password");
+        }
+
+        const token = jwt.sign({ id: user._id.toString() }, "mySecretKey", {
+          expiresIn: "1d",
+        });
+
+        return {
+          token,
+          user: {
+            id: user._id.toString(),
+            name: user.name,
+            email: user.email,
+          },
+        };
+      } catch (error) {
+        throw new Error(error.message);
+      }
+    },
   },
-   Student: {
+
+  Student: {
     courses: async (parent) => {
-      return await Course.find({ studentId: parent.id });
+      return Course.find({ studentId: parent.id });
     },
   },
 };
